@@ -1,0 +1,6 @@
+# Uncomment this if we want to run it on compute canada
+#-f /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/avx2
+#-f /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/generic
+numpy
+torch_gpu
+torchvision
