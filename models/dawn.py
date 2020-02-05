@@ -69,28 +69,15 @@ class LevelDAWN(nn.Module):
                                        simple_lifting=simple_lifting)
         self.share_weights = share_weights
         if no_bottleneck:
-<<<<<<< HEAD:dwnn.py
             # We still want to do a BN and RELU, but we will not perform a conv
             # as the input_plane and output_plare are the same
             self.bootleneck = BottleneckBlock(in_planes * 4, in_planes * 4)
-=======
-            # We still want to do a BN and RELU, 
-            # but we will not perform a conv as the input_plane and output_plare are the same
-            # Note that it BN and RELU is to get a more stable training in our case.
-            self.bootleneck = BottleneckBlock(in_planes * 1, in_planes * 1)            
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
         else:
             self.bootleneck = BottleneckBlock(in_planes * 4, in_planes * 2)
 
     def forward(self, x):
         (c, d, LL, LH, HL, HH) = self.wavelet(x)
-<<<<<<< HEAD:dwnn.py
         x = torch.cat([LL, LH, HL, HH], 1)
-=======
-        x = LL
-        details=torch.cat([LH,HL,HH],1)                          
-
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
         r = None
         if(self.regu_approx + self.regu_details != 0.0):
             # Constraint on the details
@@ -172,11 +159,7 @@ class DAWN(nn.Module):
         else:
             img_size = 32
 
-<<<<<<< HEAD:dwnn.py
         print("DWNN:")
-=======
-        print("DAWN:")
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
         print("- first conv:", first_conv)
         print("- image size:", img_size)
         print("- nb levels :", number_levels)
@@ -192,7 +175,6 @@ class DAWN(nn.Module):
             bootleneck = True
             if no_bootleneck and i == number_levels - 1:
                 bootleneck = False
-<<<<<<< HEAD:dwnn.py
 
             self.levels.add_module(
                 'level_'+str(i),
@@ -201,46 +183,14 @@ class DAWN(nn.Module):
                           share_weights, simple_lifting, regu_details, regu_approx)
             )
             in_planes *= 2
-=======
-            if i==0:
-                if haar_wavelet:
-                    self.levels.add_module(
-                        'level_'+str(i),
-                        Haar(in_planes,
-                                lifting_size, kernel_size,  bootleneck,
-                                share_weights, simple_lifting, regu_details, regu_approx)
-                    )
-                else:
-                    self.levels.add_module(
-                    'level_'+str(i),
-                    LevelDAWN(in_planes,
-                            lifting_size, kernel_size,  bootleneck,
-                            share_weights, simple_lifting, regu_details, regu_approx)
-                    )    
-            else:
-                self.levels.add_module(
-                    'level_'+str(i),
-                    LevelDAWN(in_planes,
-                            lifting_size, kernel_size,  bootleneck,
-                            share_weights, simple_lifting, regu_details, regu_approx)
-                )
-            in_planes *= 1
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
             img_size = img_size // 2
              # Here you can change this number if you want compression
             out_planes += in_planes * 3
 
         if no_bootleneck:
-<<<<<<< HEAD:dwnn.py
             in_planes *= 2
         self.img_size = img_size
         self.num_planes = in_planes
-=======
-            in_planes *= 1
-        self.img_size = img_size
-   
-        self.num_planes = out_planes
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
 
         print("Final channel:", self.num_planes)
         print("Final size   :", self.img_size)
@@ -273,7 +223,6 @@ class DAWN(nn.Module):
                 m.bias.data.zero_()
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
-<<<<<<< HEAD:dwnn.py
     def forward(self, x):
         if self.first_conv:
             x = self.conv1(x)
@@ -287,78 +236,6 @@ class DAWN(nn.Module):
         x = F.avg_pool2d(x, self.img_size)
         x = x.view(-1, self.num_planes)
         return {'output': self.fc(x), 'loss': rs}
-=======
-    def process_levels(self, x):
-        """This method is used for visualization proposes"""
-        w,h = x.shape[-2:]
-
-        # Choose to make X average
-        x = x[:, 0, :, :]
-        x = x.repeat(1, self.nb_channels_in, 1, 1)
-        x_in = x
-        print(x_in[:,0,:,:])
-
-
-        out = []
-        out_down = []
-        for l in self.levels:
-            w = w // 2
-            h = h // 2
-            x_down = nn.AdaptiveAvgPool2d((w,h))(x_in)
-            x, r, details = l(x)
-            out_down += [x_down]
-            out += [x]
-        return out, out_down
-
-    def forward(self, x):
-        if self.initialization:
-            # This mode is to train the weights
-            # of the lifting scheme only
-            # Note that this code was only for debugging proposes
-            # This part have not been used inside the paper
-            w,h = x.shape[-2:]
-            rs = []
-            rs_diff = []
-
-            # Choose to make X average
-            x = torch.mean(x, 1, True)
-            x = x.repeat(1, self.nb_channels_in, 1, 1)
-            x_in = x
-
-            # Do all the levels
-            for l in self.levels:
-                w = w // 2
-                h = h // 2
-                x_down = nn.AdaptiveAvgPool2d((w,h))(x_in)
-                x, r, details = l(x)
-                diff = torch.dist(x, x_down, p=2)
-                rs += [r]
-                rs_diff += [diff]
-            return rs_diff, rs
-        else:
-            if self.first_conv:
-                x = self.conv1(x)
-            
-            # Apply the different levels sequentially
-            rs = [] # List of constrains on details and mean
-            det = [] # List of averaged pooled details
-            
-            for l in self.levels:
-                x, r,details = l(x)
-                # Add the constrain of this level
-                rs += [r]
-                # Globally avgpool all the details
-                det += [self.avgpool(details)]
-            # At the last level (only) we GAP the approximation coefficients
-            aprox = self.avgpool(x)
-            # We add them inside the all GAP detail coefficients
-            # Finally we concat all before applying the classifier
-            det += [aprox]
-            x = torch.cat(det,1)     
-            x = x.view(-1, x.size()[1])
-            
-            return self.fc(x), rs
->>>>>>> f95d8b7895d6cc46bc164f037daa4aca9cfd2383:models/dawn.py
 
     def image_levels(self, x):
         """This method is used for visualization proposes"""
