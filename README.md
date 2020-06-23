@@ -24,7 +24,7 @@ $ python train.py --epochs 300 -b 64 --lr 0.03 --name dwnn_cifar-100_32 --lrdeca
 ```
 This is another example for KTH database with DAWN:
 ```sh
-$ python train.py --epochs 90 -b 16 --lr 0.03 --name dwnn_kth_3_dwnn_l5_16 --lrdecay 30 60 --database kth --traindir $KTH_DATA_DIR/KTH-TIPS2-b3/Test/ --valdir $KTH_DATA_DIR/KTH-TIPS2-b3/Train/ dwnn --levels 5 --first_conv 16 --regu_details 0.1 --regu_approx 0.1
+$ python train.py --epochs 90 -b 16 --lr 0.03 --name dwnn_kth_3_dwnn_l5_16 --lrdecay 30 60 --database kth --traindir $KTH_DATA_DIR/KTH-TIPS2-b3/Test/ --valdir $KTH_DATA_DIR/KTH-TIPS2-b3/Train/ dawn --levels 5 --first_conv 16 --regu_details 0.1 --regu_approx 0.1
 ```
 
 ### Cite
