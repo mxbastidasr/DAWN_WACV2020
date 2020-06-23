@@ -61,7 +61,7 @@ parser.add_argument('--tensorboard',
 parser.add_argument('--multigpu',
 					help='Do the training using multiple GPU', action='store_true')
 parser.add_argument(
-	'--database', help='database used for training', choices=['cifar-10', 'cifar-100','stl','svhn', 'kth','kth-mix','dtd', 'imagenet'])
+	'--database', help='database used for training', choices=['cifar-10', 'cifar-100','stl','svhn', 'kth','kth-mix','dtd', 'imagenet','imagenet_ECCV'])
 parser.add_argument('--num_clases', default=11, type=int,
 					help='num of classes, only works for kth dataset')
 parser.add_argument(
@@ -310,6 +310,56 @@ def main():
 												 batch_size=args.batch_size, **kwargs)
 		NUM_CLASS = args.num_clases
 		INPUT_SIZE = 224
+
+	elif args.database == 'imagenet_ECCV':
+		
+		if not USE_COLOR:
+			raise "Imagenet does not handle training with gray images"
+
+		_IMAGENET_PCA = {
+			'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
+			'eigvec': torch.Tensor([
+				[-0.5675,  0.7192,  0.4009],
+				[-0.5808, -0.0045, -0.8140],
+				[-0.5836, -0.6948,  0.4203],
+			])
+		}
+
+		if args.gcn:
+			normalize = GCN()
+		else:
+			normalize = transforms.Normalize(mean=[x for x in [0.485, 0.456, 0.406]],
+											 std=[x for x in [0.229, 0.224, 0.225]])
+
+		transform_train = transforms.Compose([
+			transforms.Resize((256, 256)),
+			transforms.RandomCrop(224),
+			transforms.ColorJitter(
+				brightness=0.4, contrast=0.4, saturation=0.4),
+			transforms.RandomHorizontalFlip(),
+			transforms.ToTensor(),
+			Lighting(0.1, _IMAGENET_PCA['eigval'], _IMAGENET_PCA['eigvec']),
+			normalize
+		])
+		transform_test = transforms.Compose([
+			transforms.Resize((256, 256)),
+			transforms.CenterCrop((224, 224)),
+			transforms.ToTensor(),
+			normalize
+		])
+
+		train_dataset = datasets.ImageFolder(root=args.traindir,
+												 transform=transform_train)
+		test_dataset = datasets.ImageFolder(root=args.valdir,
+												transform=transform_test)
+		train_loader = torch.utils.data.DataLoader(train_dataset, shuffle=True,
+												   batch_size=args.batch_size, **kwargs)
+
+		val_loader = torch.utils.data.DataLoader(test_dataset, shuffle=True,
+												 batch_size=args.batch_size, **kwargs)
+		NUM_CLASS = 1000
+		INPUT_SIZE = 224
+
 	else:
 		raise "Unknown database"
 
@@ -660,11 +710,12 @@ def train(train_loader, model, criterion, optimizer, epoch, is_dwnn,scattering=N
 				loss_regu = sum(regus)
 				loss_total += loss_regu
 				is_regu_activated = True
+			
 		else:
 			output = model(input_var)
 			loss_class = criterion(output, target_var)
 			loss_total = loss_class
-
+	
 		# measure accuracy and record loss
 		prec1 = accuracy(output.data, target, topk=(1,))[0]
 		if args.num_clases>=5:
@@ -673,6 +724,7 @@ def train(train_loader, model, criterion, optimizer, epoch, is_dwnn,scattering=N
 			p_m=3
 		prec5 = accuracy(output.data, target, topk=(p_m,))[0]#5
 		losses_total.update(loss_total.item(), input.size(0))
+
 		if is_regu_activated:
 			losses_regu.update(loss_regu.item(), input.size(0))
 		else:
